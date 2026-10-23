@@ -1,0 +1,59 @@
+// Copyright (c) 2013, Mike Samuel
+// All rights reserved.
+//
+// SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+// Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
+// Ported from examples/src/test/java/org/owasp/html/examples/UrlTextExampleTest.java.
+
+package examples
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestURLTextExample(t *testing.T) {
+	var out strings.Builder
+	err := RunURLTextExample(
+		&out,
+		"<a href='//www.example.com/'>Examples<br> like this</a> are fun!\n",
+		"<img src='https://www.example.com/example.png'> are fun!\n",
+		"<a href='www.google.com'>This</a> is not a link to google!",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "" +
+		"<a href=\"//www.example.com/\">Examples<br /> like this</a>" +
+		" - www.example.com are fun!\n" +
+		"\n" +
+		"<img src=\"https://www.example.com/example.png\" />" +
+		" - www.example.com are fun!\n" +
+		"\n" +
+		"<a href=\"www.google.com\">This</a> is not a link to google!"
+	if got := out.String(); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}

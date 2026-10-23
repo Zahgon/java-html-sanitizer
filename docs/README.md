@@ -3,15 +3,16 @@
 # Documentation
 
 This directory holds supporting documentation for the OWASP Java HTML
-Sanitizer.  Start with the [project README](../README.md) for a short API
-example and links to the current Javadoc.
+Sanitizer, a Go module.  Start with the [project README](../README.md) for
+short API examples and links to the package documentation.
 
 ## Using the sanitizer
 
-* [Getting started](getting_started.md) explains how to obtain the library and
-  identifies the main policy-building APIs.
-* [Using with Maven](maven.md) gives the dependency coordinates and JPMS
-  module name.
+* [Getting started](getting_started.md) explains how to obtain the library,
+  identifies the main policy-building APIs, and shows how to try a policy with
+  the `html-sanitize` command.
+* [Using the Go module](go.md) gives the module and package import paths and
+  explains how versions are selected.
 * [Why sanitize when you can validate?](html-validation.md) explains why the
   library returns normalized, sanitized output instead of declaring arbitrary
   input safe.

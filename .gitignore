@@ -1,9 +1,12 @@
 *~
-*.class
-target
-.classpath
-.project
-.settings
 .idea
-out
-dependency-reduced-pom.xml
+# Binaries from go build, test binaries from go test -c, and coverage and
+# profiling output.
+/html-sanitize
+/canned-tables
+*.test
+*.out
+*.prof
+# Local multi-module workspaces.
+go.work
+go.work.sum

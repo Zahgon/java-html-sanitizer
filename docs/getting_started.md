@@ -1,46 +1,110 @@
 # Getting Started
 
-## Getting the JARs
+## Getting the module
 
-If you are using Maven then follow the [maven](maven.md) directions to
-add a dependency.  Otherwise,
-[download prebuilt jars](https://search.maven.org/artifact/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/)
-or `git clone git@github.com:OWASP/java-html-sanitizer.git` and build
-the latest source.
+Follow the [Go module](go.md) directions to add a dependency:
 
-Unless maven is managing your CLASSPATH for you, you need to add `owasp-java-html-sanitizer.jar`.
-
-Once you have your CLASSPATH set up correctly with the relevant JARs
-you should be able to add
-
-```Java
-import org.owasp.html.HtmlPolicyBuilder;
+```sh
+go get github.com/OWASP/java-html-sanitizer@latest
 ```
 
-to one of your project's `.java` files and compile it.
+Or `git clone git@github.com:OWASP/java-html-sanitizer.git` and build and
+test the latest source with `go vet ./...` and `go test ./...`.
+
+Once the module is in your `go.mod` you should be able to add
+
+```go
+import "github.com/OWASP/java-html-sanitizer/sanitizer"
+```
+
+to one of your project's `.go` files and compile it.
 
 ## Using the APIs
 
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/OWASP/java-html-sanitizer/sanitizer"
+)
+
+func main() {
+	// Build a policy once, at start-up, and share it: a *PolicyFactory is
+	// immutable and safe for concurrent use.
+	policy, err := sanitizer.NewHTMLPolicyBuilder().
+		AllowElements("p", "a").
+		AllowAttributes("href").OnElements("a").
+		AllowStandardURLProtocols().
+		RequireRelNofollowOnLinks().
+		ToFactory()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Prepackaged policies combine with And.
+	policy = policy.And(sanitizer.Formatting)
+
+	fmt.Println(policy.Sanitize(
+		`<p onclick="steal()">Hi <b>there</b>, <a href="javascript:alert(1)">click</a>` +
+			` or <a href="https://example.com/">here</a><script>alert(2)</script>`))
+	// <p>Hi <b>there</b>, click or <a href="https://example.com/" rel="nofollow">here</a></p>
+}
+```
+
 The
-[examples](https://github.com/OWASP/java-html-sanitizer/tree/main/examples/src/main/java/org/owasp/html/examples)
+[examples](../examples/README.md)
 include source code which defines a sanitization policy, and applies
 it to HTML.  They are sample source to read and copy into your own
-project, not classes in the jar: there is nothing under
-`org.owasp.html.examples` to import.
+project, not part of the library's API: import only
+`github.com/OWASP/java-html-sanitizer/sanitizer`.
 
 The
-[javadoc](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/index.html)
+[package documentation](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer),
+also available with `go doc github.com/OWASP/java-html-sanitizer/sanitizer`,
 covers more detailed topics, including
-[customization](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/HtmlPolicyBuilder.html).
+[customization](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLPolicyBuilder).
 
-Important classes are:
+Important types and values are:
 
-  * [Sanitizers](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/Sanitizers.html) contains combinable pre-packaged policies.
-  * [HtmlPolicyBuilder](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/HtmlPolicyBuilder.html) lets you easily build custom policies.
+  * [Formatting, Blocks, Styles, Links, Tables and Images](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#pkg-variables) are combinable pre-packaged policies.
+  * [HTMLPolicyBuilder](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLPolicyBuilder), from `NewHTMLPolicyBuilder`, lets you easily build custom policies.
+  * [PolicyFactory](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#PolicyFactory), from `HTMLPolicyBuilder.ToFactory`, sanitizes strings with `Sanitize` and `SanitizeWithListener`, and combines with other policies through `And`.
 
 For advanced use, see:
-  * [AttributePolicy](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/AttributePolicy.html) and [ElementPolicy](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/ElementPolicy.html) allow complex customization.
-  * [HtmlStreamEventReceiver](https://static.javadoc.io/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/HtmlStreamEventReceiver.html) if you don't just want a `String` as output.
+  * [AttributePolicy](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#AttributePolicy) and [ElementPolicy](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#ElementPolicy) allow complex customization.
+  * [HTMLChangeListener](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLChangeListener) reports what a policy removed.
+  * [HTMLStreamEventReceiver](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLStreamEventReceiver) if you don't just want a `string` as output.
+
+## Trying a policy from the command line
+
+The [html-sanitize](../cmd/html-sanitize/main.go) command runs the sanitizer
+locally against a policy of your choosing.  From a clone of the repository:
+
+```sh
+go run ./cmd/html-sanitize -p formatting -p links untrusted.html
+```
+
+`-p` names a prepackaged or example policy, and `-f` reads a policy from a
+JSON file whose steps are `HTMLPolicyBuilder` calls, applied in order:
+
+```json
+[
+  {"allowElements": ["a", "p"]},
+  {"allowAttributes": ["href"], "onElements": ["a"]},
+  {"allowStandardUrlProtocols": true},
+  {"requireRelNofollowOnLinks": true}
+]
+```
+
+```sh
+go run ./cmd/html-sanitize -f policy.json --report < untrusted.html
+```
+
+`--report` writes every change-listener event to standard error, one JSON
+array per line.  `go doc ./cmd/html-sanitize` lists every flag and policy
+file step.
 
 ## Asking Questions
 

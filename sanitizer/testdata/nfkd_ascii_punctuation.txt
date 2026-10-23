@@ -1,0 +1,40 @@
+# The BMP characters from U+0080 to U+FFFD whose NFKD form, per Java 21's
+# java.text.Normalizer, contains a printable non-alphanumeric ASCII character.
+# One code point or inclusive range (FIRST..LAST) per line, in hex.
+037E
+1FEF
+2024..2026
+203C
+2047..2049
+207A
+207C..207E
+208A
+208C..208E
+2100..2101
+2105..2106
+2260
+226E..226F
+2474..24B5
+2A74..2A76
+3200..321E
+3220..3243
+33C2
+33C7
+33D8
+FB29
+FE10
+FE13..FE16
+FE19
+FE30
+FE33..FE38
+FE47..FE48
+FE4D..FE50
+FE52
+FE54..FE57
+FE59..FE5C
+FE5F..FE66
+FE68..FE6B
+FF01..FF0F
+FF1A..FF20
+FF3B..FF40
+FF5B..FF5E

@@ -1,10 +1,12 @@
 /COPYING text
 /LICENSE text
-/owasp-java-html-sanitizer/src/test/resources/org/owasp/html/* text eol=lf
+/sanitizer/testdata/*.html text eol=lf
+/sanitizer/testdata/*.txt text eol=lf
+*.gz binary
 .gitattributes text
 .gitignore text
+*.go text eol=lf
 *.html text
-*.java text
 *.js text
 *.json text
 *.md text

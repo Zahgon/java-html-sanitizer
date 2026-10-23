@@ -5,8 +5,11 @@
 This module measures how browsers nest and balance HTML tags.  It converts
 those observations into the element tables used by the sanitizer.
 
-This is an internal maintenance tool.  It is part of the Maven reactor so its
-generator is compiled and checked, but it is not published.
+This is an internal maintenance tool.  Its generator,
+[cmd/canned-tables](cmd/canned-tables/main.go), is a Go command in this module
+that uses only the standard library, so it builds even when the tables it
+replaces are stale; `go test ./empiricism/...` checks that the checked-in
+tables are current.
 
 ## Files and data flow
 
@@ -15,20 +18,19 @@ generator is compiled and checked, but it is not published.
 2. The probe emits JSON that is saved as [canned-data.json](canned-data.json).
 3. [rebuild.sh](rebuild.sh) parses and formats that JSON into
    [canned-data.js](canned-data.js), then runs the
-   [Java generator](src/main/java/org/owasp/html/empiricism/JsonToSerializedHtmlElementTables.java).
-4. The generator writes `target/HtmlElementTablesCanned.java`, and the script
-   copies it into the library as
-   [HtmlElementTablesCanned.java](../owasp-java-html-sanitizer/src/main/java/org/owasp/html/HtmlElementTablesCanned.java).
+   [generator](cmd/canned-tables/main.go) through the `go:generate` directive
+   in [html_element_tables.go](../sanitizer/html_element_tables.go).
+4. The generator writes the library's
+   [html_element_tables_canned.go](../sanitizer/html_element_tables_canned.go).
 
-`canned-data.json`, `canned-data.js`, and `HtmlElementTablesCanned.java` are
+`canned-data.json`, `canned-data.js`, and `html_element_tables_canned.go` are
 different representations of the same browser observations.  Never hand-edit
-`HtmlElementTablesCanned.java`.
+`html_element_tables_canned.go`.
 
 ## Regenerating the tables
 
-You need a browser with JavaScript enabled, Bash, Python 3, Perl, and
-[JDK 11 or newer](../README.md#repository-layout).  The script uses the
-repository's Maven wrapper.
+You need a browser with JavaScript enabled, Bash, Python 3, Perl, and the Go
+toolchain named in [go.mod](../go.mod).
 
 1. Open the local `empiricism/html-containment.html` file in your browser and
    follow its `?rerun` link.  The full probe can take a long time; wait for it
@@ -43,21 +45,21 @@ repository's Maven wrapper.
    ```
 
 4. Review the diffs in `canned-data.json`, `canned-data.js`, and the generated
-   Java file.  Explain changes in browser observations and add corresponding
+   Go file.  Explain changes in browser observations and add corresponding
    sanitizer tests where behavior changes.
-5. Run the complete reactor before proposing the update:
+5. Run every test before proposing the update:
 
    ```sh
-   ./mvnw clean verify
+   go test ./...
    ```
 
 For a quick diagnostic run, use `?rerun&shortlist`.  Its output covers only a
 subset of elements; do not use it to replace the complete `canned-data.json`.
 
-The rebuild script first installs the reactor artifacts into your local Maven
-repository with tests skipped, then generates and copies the new tables.  The
-final `clean verify` above compiles and tests the updated library.  A normal
-Maven build uses the checked-in tables and does not run browser experiments.
+Running `go generate ./sanitizer/html_element_tables.go` from the repository
+root regenerates the tables from `canned-data.json` alone, without touching
+`canned-data.js`.  A normal build uses the checked-in tables and does not run
+browser experiments.
 
 Because these tables affect parsing and balancing of attacker-controlled HTML,
 treat every data change as security-sensitive.  Include adversarial cases for

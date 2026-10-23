@@ -5,10 +5,6 @@ cd "$(dirname "$0")"
 echo Load html-containment.html?rerun into your browser then copy/paste the
 echo JSON dump from the bottom into $PWD/canned-data.json
 
-pushd ..
-./mvnw -ntp -B install -DskipTests
-popd
-
 # Regenerate the cannedData block into target/ first, so a bad paste into
 # canned-data.json fails here without touching the tracked canned-data.js.
 mkdir -p target
@@ -30,11 +26,8 @@ $found = 1 if m/^var cannedData = /;
 print unless $found;' canned-data.js
 cat target/canned-data-block.js >> canned-data.js
 
-../mvnw -ntp -B package
-
-../mvnw -ntp -B exec:java \
-  -Dexec.mainClass=org.owasp.html.empiricism.JsonToSerializedHtmlElementTables
-
-# TODO: Maybe do this via a genrule in the pom.xml
-cp target/HtmlElementTablesCanned.java ../owasp-java-html-sanitizer/src/main/java/org/owasp/html
-echo copied generated source to src directory
+# Runs cmd/canned-tables via the go:generate directive in
+# sanitizer/html_element_tables.go, which rewrites
+# sanitizer/html_element_tables_canned.go from canned-data.json.
+(cd .. && go generate ./sanitizer/html_element_tables.go)
+echo regenerated sanitizer/html_element_tables_canned.go

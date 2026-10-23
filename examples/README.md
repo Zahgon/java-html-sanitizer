@@ -2,33 +2,40 @@
 
 # Examples
 
-This module contains worked examples of building and applying sanitizer
-policies.  The sources are meant to be read and adapted; the module is tested
-as part of the reactor but is not published, so applications should not import
-`org.owasp.html.examples`.
+This package contains worked examples of building and applying sanitizer
+policies.  The sources are meant to be read and adapted; the package is tested
+with the rest of the module, and the `html-sanitize` command uses its
+policies, but it is not part of the library's API, so applications should not
+import `github.com/OWASP/java-html-sanitizer/examples`.
 
 ## Included examples
 
-* [EbayPolicyExample.java](src/main/java/org/owasp/html/examples/EbayPolicyExample.java)
+* [ebay_policy_example.go](ebay_policy_example.go) (`EbayPolicy`)
   demonstrates a rich-text policy with CSS and attribute rules.
-* [SlashdotPolicyExample.java](src/main/java/org/owasp/html/examples/SlashdotPolicyExample.java)
+* [slashdot_policy_example.go](slashdot_policy_example.go) (`SlashdotPolicy`)
   demonstrates a smaller policy, custom element names, and normalized attributes.
-* [UrlTextExample.java](src/main/java/org/owasp/html/examples/UrlTextExample.java)
+* [url_text_example.go](url_text_example.go) (`URLTextPolicy`)
   demonstrates a postprocessor that appends a URL's
   authority as visible text after links and images.
 
-The eBay and Slashdot programs read UTF-8 HTML from standard input and write
-sanitized HTML to standard output; each buffers the complete input before
-sanitizing.  `UrlTextExample` accepts HTML as command-line arguments.
+`RunEbayPolicy` and `RunSlashdotPolicy` read UTF-8 HTML from an `io.Reader`
+and write sanitized HTML to an `io.Writer`; each buffers the complete input
+before sanitizing.  `RunURLTextExample` takes its HTML as string arguments.
+To run a policy on a document, use the
+[html-sanitize](../cmd/html-sanitize/main.go) command, whose `ebay`,
+`slashdot` and `urltext` policies are these:
+
+```sh
+go run ./cmd/html-sanitize -p ebay untrusted.html
+```
 
 ## Build and test
 
-The [tests](src/test/java/org/owasp/html/examples/) exercise both accepted
-markup and hostile input.  With JDK 11 or newer, run them from the repository
-root so Maven also builds the sanitizer and shim modules:
+The [tests](examples_test.go) exercise both accepted markup and hostile
+input.  Run them from the repository root:
 
 ```sh
-./mvnw -pl examples -am test
+go test ./examples
 ```
 
 Treat these policies as examples, not universal security profiles.  Start from

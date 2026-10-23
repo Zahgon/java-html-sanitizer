@@ -1,15 +1,18 @@
 # OWASP Java HTML Sanitizer
 
-[![Build](https://github.com/OWASP/java-html-sanitizer/actions/workflows/build.yml/badge.svg)](https://github.com/OWASP/java-html-sanitizer/actions/workflows/build.yml) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/2602/badge)](https://www.bestpractices.dev/projects/2602) [![Maven Central](https://img.shields.io/maven-central/v/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer.svg)](https://search.maven.org/artifact/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer)
+[![Build](https://github.com/OWASP/java-html-sanitizer/actions/workflows/build.yml/badge.svg)](https://github.com/OWASP/java-html-sanitizer/actions/workflows/build.yml) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/2602/badge)](https://www.bestpractices.dev/projects/2602) [![Go Reference](https://pkg.go.dev/badge/github.com/OWASP/java-html-sanitizer/sanitizer.svg)](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer)
 
 
-A fast and easy to configure HTML Sanitizer written in Java which lets
-you include HTML authored by third-parties in your web application while
-protecting against XSS.
+A fast and easy to configure HTML Sanitizer which lets you include HTML
+authored by third-parties in your web application while protecting against
+XSS.
 
-The sanitizer JAR has no runtime dependencies.  Its only compile-time
-dependency is `spotbugs-annotations` (provided scope, annotations only);
-the other jars are only needed by the test suite.
+The sanitizer was originally written in Java; it is now a Go module,
+`github.com/OWASP/java-html-sanitizer`, that keeps the repository's name.
+The library is the package
+[`github.com/OWASP/java-html-sanitizer/sanitizer`](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer).
+It uses only the Go standard library, so it brings no third-party
+dependencies into your build.
 
 This code was written with security best practices in mind, has an
 extensive test suite, and has undergone
@@ -24,6 +27,8 @@ extensive test suite, and has undergone
 *  [Custom policies](#custom-policies)
 *  [Preprocessors](#preprocessors)
 *  [Telemetry](#telemetry)
+*  [Command-line sanitizer](#command-line-sanitizer)
+*  [Building and testing](#building-and-testing)
 *  [Questions\?](#questions)
 *  [Contributing](#contributing)
 *  [License](#license)
@@ -31,147 +36,163 @@ extensive test suite, and has undergone
 
 ## Getting Started
 
-[Getting Started](docs/getting_started.md) includes instructions on
-how to get started with or without Maven.
+Add the module to your Go module (Go 1.23 or newer):
+
+```sh
+go get github.com/OWASP/java-html-sanitizer@latest
+```
+
+and import the library package:
+
+```go
+import "github.com/OWASP/java-html-sanitizer/sanitizer"
+```
+
+[Getting Started](docs/getting_started.md) walks through the main APIs, and
+[Using the Go module](docs/go.md) covers versions and imports.
 
 ## Repository Layout
 
-Building requires JDK 11 or newer.  From the repository root, build all Maven
-modules and run their tests with:
-
-```sh
-./mvnw clean verify
-```
-
-The Maven wrapper pins the required Maven version.  If you select a module
-with `-pl`, also use `-am` so Maven builds the modules it depends on.
-
-* [owasp-java-html-sanitizer/](owasp-java-html-sanitizer/README.md) contains the
-  published library, its tests, and its Java module descriptor.
-* [java8-shim/](java8-shim/README.md) and
-  [java10-shim/](java10-shim/README.md) implement
-  compatibility code that is bundled into the library JAR.
+* [sanitizer/](sanitizer/) is the library: HTML lexing, tag balancing,
+  allowlist policy enforcement, CSS handling and rendering, with its tests and
+  their data in `sanitizer/testdata/`.
+* [cmd/html-sanitize/](cmd/html-sanitize/main.go) is a command that sanitizes
+  an HTML document with prepackaged, example or JSON-defined policies.
 * [examples/](examples/README.md) contains sample policies to read and copy;
-  it is tested but not published.
-* [empiricism/](empiricism/README.md) contains the browser experiments used
-  to generate the sanitizer's HTML element tables.
+  they are tested but are not part of the library's API.
+* [empiricism/](empiricism/README.md) contains the browser experiments, and
+  the generator, behind the sanitizer's HTML element tables.
 * [docs/](docs/README.md) contains user, security, and historical documentation.
 
 ## Prepackaged Policies
 
-You can use
-[prepackaged policies](https://www.javadoc.io/doc/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/Sanitizers.html):
+You can use the
+[prepackaged policies](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#pkg-variables)
+`sanitizer.Formatting`, `Blocks`, `Styles`, `Links`, `Tables` and `Images`,
+and combine them with `And`:
 
-```Java
-PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS);
-String safeHTML = policy.sanitize(untrustedHTML);
+```go
+policy := sanitizer.Formatting.And(sanitizer.Links)
+safeHTML := policy.Sanitize(untrustedHTML)
 ```
 
 ## Crafting a policy
 
 The
-[tests](https://github.com/OWASP/java-html-sanitizer/blob/main/owasp-java-html-sanitizer/src/test/java/org/owasp/html/HtmlPolicyBuilderTest.java)
+[tests](sanitizer/html_policy_builder_test.go)
 show how to configure your own
-[policy](https://www.javadoc.io/doc/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/HtmlPolicyBuilder.html):
+[policy](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLPolicyBuilder):
 
-```Java
-PolicyFactory policy = new HtmlPolicyBuilder()
-    .allowElements("a")
-    .allowUrlProtocols("https")
-    .allowAttributes("href").onElements("a")
-    .requireRelNofollowOnLinks()
-    .toFactory();
-String safeHTML = policy.sanitize(untrustedHTML);
+```go
+policy, err := sanitizer.NewHTMLPolicyBuilder().
+	AllowElements("a").
+	AllowURLProtocols("https").
+	AllowAttributes("href").OnElements("a").
+	RequireRelNofollowOnLinks().
+	ToFactory()
+if err != nil {
+	log.Fatal(err) // the builder was misconfigured
+}
+safeHTML := policy.Sanitize(untrustedHTML)
 ```
+
+`ToFactory` returns the first configuration error the builder recorded, such
+as a `rel` value containing spaces.  The `*PolicyFactory` it returns is
+immutable and safe for concurrent use, so build it once and share it.
 
 ## Custom Policies
 
 You can write
-[custom policies](https://www.javadoc.io/doc/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/ElementPolicy.html)
+[custom element policies](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#ElementPolicy)
 to do things like changing `h1`s to `div`s with a certain class:
 
-```Java
-PolicyFactory policy = new HtmlPolicyBuilder()
-    .allowElements("p")
-    .allowElements(
-        (String elementName, List<String> attrs) -> {
-          // Add a class attribute.
-          attrs.add("class");
-          attrs.add("header-" + elementName);
-          // Return elementName to include, null to drop.
-          return "div";
-        }, "h1", "h2", "h3", "h4", "h5", "h6")
-    .toFactory();
-String safeHTML = policy.sanitize(untrustedHTML);
+```go
+policy, err := sanitizer.NewHTMLPolicyBuilder().
+	AllowElements("p").
+	AllowElementsWithPolicy(
+		sanitizer.ElementPolicyFunc(func(elementName string, attrs *[]string) (string, bool) {
+			// Add a class attribute.
+			*attrs = append(*attrs, "class", "header-"+elementName)
+			// Return the new element name and true to include it,
+			// or false to drop it.
+			return "div", true
+		}),
+		"h1", "h2", "h3", "h4", "h5", "h6").
+	ToFactory()
 ```
 
 Please note that the elements "a", "font", "img", "input" and "span"
-need to be explicitly whitelisted using the `allowWithoutAttributes()`
+need to be explicitly allowed using the `AllowWithoutAttributes()`
 method if you want them to be allowed through the filter when these
 elements do not include any attributes.
 
-[Attribute policies](https://www.javadoc.io/doc/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/AttributePolicy.html) allow running custom code too.  Adding an attribute policy will not water down any default policy like `style` or URL attribute checks.
+[Attribute policies](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#AttributePolicy) allow running custom code too.  Adding an attribute policy will not water down any default policy like `style` or URL attribute checks.
 
-```Java
-PolicyFactory myPolicy = new HtmlPolicyBuilder()
-    .allowElements("div", "span")
-    .allowAttributes("data-foo")
-        .matching(
-            (String elementName, String attributeName, String value) -> {
-              // Return value for the attribute or null to drop.
-              return value;
-            })
-        .onElements("div", "span")
-    .toFactory();
+```go
+myPolicy, err := sanitizer.NewHTMLPolicyBuilder().
+	AllowElements("div", "span").
+	AllowAttributes("data-foo").
+	Matching(sanitizer.AttributePolicyFunc(
+		func(elementName, attributeName, value string) (string, bool) {
+			// Return the value to keep and true, or false to drop the
+			// attribute.
+			return value, true
+		})).
+	OnElements("div", "span").
+	ToFactory()
 ```
 
 ## Preprocessors
 
-Preprocessors allow inserting text and large scale structural changes.
+Preprocessors allow inserting text and large scale structural changes.  A
+receiver that embeds
+[`HTMLStreamEventReceiverWrapper`](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLStreamEventReceiverWrapper)
+passes on every event it does not handle itself:
 
-```Java
-PolicyFactory myPolicy = new HtmlPolicyBuilder()
-    .withPreprocessor(
-        (HtmlStreamEventReceiver r) -> {
-          // Provide user with info about links before they click.
-          // Before:                       <a href="https://example.com/...">
-          // After:  (https://example.com) <a href="https://example.com/...">
-          return new HtmlStreamEventReceiverWrapper(r) {
-            @Override public void openTag(String elementName, List<String> attrs) {
-              if ("a".equals(elementName)) {
-                for (int i = 0, n = attrs.size(); i < n; i += 2) {
-                  if ("href".equals(attrs.get(i))) {
-                    String url = attrs.get(i + 1);
-                    String origin;
-                    try {
-                      URI uri = new URI(url);
-                      String scheme = uri.getScheme();
-                      String authority = uri.getRawAuthority();
-                      if (scheme == null && authority == null) {
-                        origin = null;
-                      } else {
-                        origin = (scheme != null ? scheme + ":" : "")
-                               + (authority != null ? "//" + authority : "");
-                      }
-                    } catch (URISyntaxException ex) {
-                      origin = "about:invalid";
-                    }
-                    if (origin != null) {
-                      text(" (" + origin + ") ");
-                    }
-                  }
-                }
-              }
-              super.openTag(elementName, attrs);
-            }
-          };
-        })
-     .allowElements("a")
-     .allowAttributes("href").onElements("a")
-     .allowStandardUrlProtocols()
-    ...
-    .toFactory();
+```go
+// linkOrigins provides users with info about links before they click.
+//
+//	Before:                       <a href="https://example.com/...">
+//	After:  (https://example.com) <a href="https://example.com/...">
+type linkOrigins struct {
+	sanitizer.HTMLStreamEventReceiverWrapper
+}
 
+func (r linkOrigins) OpenTag(elementName string, attrs []string) {
+	if elementName == "a" {
+		for i := 0; i+1 < len(attrs); i += 2 {
+			if attrs[i] != "href" {
+				continue
+			}
+			origin := "about:invalid"
+			if u, err := url.Parse(attrs[i+1]); err == nil {
+				origin = ""
+				if u.Scheme != "" {
+					origin = u.Scheme + ":"
+				}
+				if u.Host != "" {
+					origin += "//" + u.Host
+				}
+			}
+			if origin != "" {
+				r.Text(" (" + origin + ") ")
+			}
+		}
+	}
+	r.HTMLStreamEventReceiverWrapper.OpenTag(elementName, attrs)
+}
+```
+
+```go
+myPolicy, err := sanitizer.NewHTMLPolicyBuilder().
+	WithPreprocessor(sanitizer.HTMLStreamEventProcessorFunc(
+		func(sink sanitizer.HTMLStreamEventReceiver) sanitizer.HTMLStreamEventReceiver {
+			return linkOrigins{sanitizer.NewHTMLStreamEventReceiverWrapper(sink)}
+		})).
+	AllowElements("a").
+	AllowAttributes("href").OnElements("a").
+	AllowStandardURLProtocols().
+	ToFactory()
 ```
 
 Preprocessing happens before a policy is applied, so cannot affect the security
@@ -179,38 +200,42 @@ of the output.
 
 ## Telemetry
 
-When a policy rejects an element or attribute it notifies an [HtmlChangeListener](https://www.javadoc.io/doc/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer/latest/org/owasp/html/HtmlChangeListener.html).
+When a policy rejects an element or attribute it notifies an [HTMLChangeListener](https://pkg.go.dev/github.com/OWASP/java-html-sanitizer/sanitizer#HTMLChangeListener).
 
 You can use this to keep track of policy violation trends and find out when someone
 is making an effort to breach your security.
 
-```Java
-PolicyFactory myPolicyFactory = ...;
-// If you need to associate reports with some context, you can do so.
-MyContextClass myContext = ...;
+```go
+// requestContext is whatever you want to associate reports with.
+type requestContext struct{ remoteAddr string }
 
-String sanitizedHtml = myPolicyFactory.sanitize(
-    unsanitizedHtml,
-    new HtmlChangeListener<MyContextClass>() {
-      @Override
-      public void discardedTag(MyContextClass context, String elementName) {
-        // ...
-      }
-      @Override
-      public void discardedAttributes(
-          MyContextClass context, String elementName, String... attributeNames) {
-        // ...
-      }
-    },
-    myContext);
+// violationLogger embeds NopHTMLChangeListener, so it need only define the
+// methods it uses.
+type violationLogger struct {
+	sanitizer.NopHTMLChangeListener
+}
+
+func (violationLogger) DiscardedTag(context any, elementName string) {
+	log.Printf("%s: discarded <%s>", context.(*requestContext).remoteAddr, elementName)
+}
+
+func (violationLogger) DiscardedAttributes(context any, tagName string, attributeNames ...string) {
+	log.Printf("%s: discarded %v from <%s>", context.(*requestContext).remoteAddr, attributeNames, tagName)
+}
 ```
 
-`discardedAttributes` also fires for attributes rejected from an element that
+```go
+sanitizedHTML := policy.SanitizeWithListener(
+	unsanitizedHTML, violationLogger{}, &requestContext{remoteAddr: "192.0.2.1"})
+```
+
+`DiscardedAttributes` also fires for attributes rejected from an element that
 was then dropped for having none left, such as a link whose only `href` was
-rejected.  Two default methods carry more detail for listeners that override
-them: `discardedAttribute` receives each rejected attribute's value, and
-`discardedText` receives tag-like content the policy removed from a kept
-literal-content element, and content the renderer could not emit from one.
+rejected.  Two more methods carry more detail for listeners that define
+them instead of taking `NopHTMLChangeListener`'s no-ops: `DiscardedAttribute`
+receives each rejected attribute's value, and `DiscardedText` receives
+tag-like content the policy removed from a kept literal-content element, and
+content the renderer could not emit from one.
 
 **Note**: If a string sanitizes with no change notifications, it is not the case
 that the input string is necessarily safe to use. Only use the output of the sanitizer.
@@ -221,6 +246,40 @@ notifications does not mean that the input is in such a sub-set,
 only that it does not contain structural content that was removed.
 
 See ["Why sanitize when you can validate"](https://github.com/OWASP/java-html-sanitizer/blob/main/docs/html-validation.md) for more on this topic.
+
+## Command-line sanitizer
+
+[`html-sanitize`](cmd/html-sanitize/main.go) sanitizes one HTML document,
+read as UTF-8 from a file or standard input, and writes the result to
+standard output.  Policies are named with `-p` (`formatting`, `blocks`,
+`styles`, `links`, `tables`, `images`, and the example policies `ebay`,
+`slashdot` and `urltext`) or defined in a JSON policy file with `-f`; several
+are combined with `And`.  `--report` also writes every change-listener event
+to standard error.
+
+```sh
+go install github.com/OWASP/java-html-sanitizer/cmd/html-sanitize@latest
+html-sanitize -p formatting -p links untrusted.html
+```
+
+`go doc github.com/OWASP/java-html-sanitizer/cmd/html-sanitize` describes
+the flags and the policy file format.  It is a convenient way to try a policy
+against an input, for example when reviewing an attack.
+
+## Building and testing
+
+You need the Go toolchain named in [go.mod](go.mod) or newer.  From the
+repository root:
+
+```sh
+go vet ./...
+go test ./...
+```
+
+CI also checks that `gofmt -l .` lists no files.  The HTML element tables in
+`sanitizer/html_element_tables_canned.go` are generated: see
+[empiricism/](empiricism/README.md) for how `go generate ./sanitizer`
+rebuilds them.
 
 ## Questions?
 
@@ -253,7 +312,8 @@ best way to reach the maintainers.
 
 We welcome [issue reports](https://github.com/OWASP/java-html-sanitizer/issues) and PRs.
 PRs that change behavior or that add functionality should include both positive and
-[negative tests](https://www.guru99.com/negative-testing.html).
+[negative tests](https://www.guru99.com/negative-testing.html), and must pass
+`gofmt`, `go vet ./...` and `go test ./...`.
 
 Please be aware that contributions fall under the project's dual license:
 `Apache-2.0 OR BSD-2-Clause`, at the recipient's option. See
@@ -270,10 +330,10 @@ the full text of both licenses.  `LICENSE` holds only the Apache-2.0 arm, so
 that automated tooling which understands a single license file detects one;
 it does not narrow the choice offered by `COPYING`.
 
-Every source file carries an SPDX identifier.  Two AntiSamy-derived test
-files are third-party code under `BSD-3-Clause` and are listed under
-THIRD-PARTY CODE in `COPYING`; they are not compiled into the published
-artifact.
+Every source file carries an SPDX identifier.  AntiSamy-derived test code is
+third-party code under `BSD-3-Clause`, listed under THIRD-PARTY CODE in
+`COPYING`; it lives in `sanitizer/anti_samy_test.go`, a test file that is not
+compiled into the library.
 
 ## Credits
 

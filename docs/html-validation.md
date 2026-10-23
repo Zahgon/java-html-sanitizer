@@ -122,23 +122,23 @@ its code interpreter with a payload to win.
 We also have to be careful to consider the contexts in which safe
 strings can be used.  For example, it is the case that
 
-```java
-String safe1 = sanitize("<");
-String safe2 = sanitize("scr");
-String safe3 = sanitize("ipt");
-String safe4 = sanitize(">");
-String allSafe = safe1 + safe2 + safe3 + safe4;
+```go
+safe1 := sanitize("<")
+safe2 := sanitize("scr")
+safe3 := sanitize("ipt")
+safe4 := sanitize(">")
+allSafe := safe1 + safe2 + safe3 + safe4
 ```
 
 but all browsers will parse the `<` as a document fragment to a single
 case, yet it is not the case that
 
-```java
-boolean isValid1 = isValid("<");
-boolean isValid2 = isValid("scr");
-boolean isValid3 = isValid("ipt");
-boolean isValid4 = isValid(">");
-boolean areAllValid = isValid1 && isValid2 && isValid3 && isValid4;
+```go
+isValid1 := isValid("<")
+isValid2 := isValid("scr")
+isValid3 := isValid("ipt")
+isValid4 := isValid(">")
+areAllValid := isValid1 && isValid2 && isValid3 && isValid4
 ```
 
 The larger the *valid* grammar, the more we risk shooting ourselves in
@@ -246,10 +246,10 @@ problematic part of the input.
 
 This use case seems to be addressable via
 
-```java
-String normalizedButNotFiltered = policyThatAllowsEverything.sanitize(input);
-String filtered = policy.sanitize(input);
-boolean violatedPolicy = !normalizedButNotFiltered.equals(filtered);
+```go
+normalizedButNotFiltered := policyThatAllowsEverything.Sanitize(input)
+filtered := policy.Sanitize(input)
+violatedPolicy := normalizedButNotFiltered != filtered
 ```
 
 and those two can be structurally compared to narrow down the

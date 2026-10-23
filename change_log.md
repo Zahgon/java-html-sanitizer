@@ -1,6 +1,14 @@
 # OWASP Java HTML Sanitizer Change Log
 
 Most recent at top.
+  * Next release
+    * The library is now a Go module, `github.com/OWASP/java-html-sanitizer`,
+      whose package `sanitizer` carries the sanitizer, its policy builder and
+      the prepackaged policies, using only the Go standard library.  A new
+      `html-sanitize` command, in `cmd/html-sanitize`, sanitizes a document
+      with prepackaged, example or JSON-defined policies.  The Java
+      implementation and its Maven build, including the shims and the
+      Maven Central release workflow, are removed.
   * Release 20261011.1
     * The jar passes a Java 8 build's bytecode check again.  Since
       20260921.1 bundled the shims into it, its root held two classes
